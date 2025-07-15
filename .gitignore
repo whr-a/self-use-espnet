@@ -46,6 +46,8 @@ doc/vuepress/src/.vuepress/.temp
 doc/vuepress/src/.vuepress/.cache
 dist
 
+espnet2/gan_codec/shared/vocoder/bigvgan/
+
 # recipe related
 egs*/*/*/data*
 egs*/*/*/db

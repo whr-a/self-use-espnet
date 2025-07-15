@@ -93,7 +93,10 @@ class AudioCoding:
             set_all_random_seed(self.seed)
 
         codes = self.model.encode(**batch, **cfg)
-        output_dict = dict(codes=codes)
+        
+        output_dict = {}
+        if isinstance(codes, torch.Tensor):
+            output_dict['codes'] = codes
 
         if encode_only:
             return output_dict
@@ -277,7 +280,7 @@ def inference(
 
     # remove files if those are not included in output dict
     if output_dict.get("codes") is None:
-        shutil.rmtree(output_dir_path / "codes")
+        shutil.rmtree(output_dir_path / "codec")
     if output_dict.get("resyn_audio") is None:
         shutil.rmtree(output_dir_path / "wav")
 

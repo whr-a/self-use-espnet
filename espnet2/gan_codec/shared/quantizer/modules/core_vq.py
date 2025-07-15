@@ -470,3 +470,90 @@ class ResidualVectorQuantization(nn.Module):
             quantized = layer.decode(indices)
             quantized_out = quantized_out + quantized
         return quantized_out
+class BandVectorQuantization(nn.Module):
+    """Residual vector quantization implementation.
+
+    Follows Algorithm 1. in https://arxiv.org/pdf/2107.03312.pdf
+    """
+
+    def __init__(self, *, num_bands: int, **kwargs):
+        super().__init__()
+        self.layers = nn.ModuleList(
+            [VectorQuantization(**kwargs) for _ in range(num_bands)]
+        )
+        self.num_bands = num_bands
+        self.quantizer_dropout = kwargs.get("quantizer_dropout")
+
+    def forward(self, x: torch.Tensor):
+        """
+        Args:
+            x: Tensor of shape [B, bands, d]
+        Returns:
+            quantized_per: Tensor [B, bands+1, d]  ← 每个 band+最后残差 的量化输出
+            all_indices: LongTensor [bands+1, B, ...]
+            all_losses:  Tensor [bands+1, B, ...]  （如果 VectorQuantization 返回 loss）
+        """
+        B, bands, d, n = x.shape
+        assert bands == self.num_bands, "输入 bands 必须和初始化时一致"
+
+        if not self.quantizer_dropout:
+            residual = torch.zeros((B, d, n), device=x.device)
+            quantized_per = []   # 存每层量化后的 [B, d, n]
+            all_indices = []
+            all_loss = []
+
+            # 对前 bands 个 band 做 VQ
+            for i in range(bands):
+                inp = residual + x[:, i, :, :]
+                quantized, indices, loss = self.layers[i](inp)
+                residual = inp - quantized
+
+                quantized_per.append(quantized)
+                all_indices.append(indices)
+                all_loss.append(loss)
+
+            # stack → quantized_per: [B, bands+1, d]
+            quantized_per = torch.stack(quantized_per, dim=1)
+            # stack → all_indices, all_losses: [bands+1, B, ...]
+            all_indices = torch.stack(all_indices, dim=1)
+            all_loss = torch.stack(all_loss)
+
+            return quantized_per, all_indices, all_loss
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor [B, bands, d]
+        Returns:
+            indices: Tensor [bands+1, B, *]
+        """
+        B, bands, d, n = x.shape
+        assert bands == self.num_bands
+        residual = torch.zeros((B, d, n), device=x.device)   # 【MOD】初始残差 = 0
+        all_indices = []
+
+        # 1. 对前 bands 个 signal band 做 VQ
+        for i in range(bands):
+            inp = residual + x[:, i, :, :]                  # 【MOD】残差+第 i 个 band
+            idx = self.layers[i].encode(inp)
+            quantized = self.layers[i].decode(idx)
+            residual = inp - quantized                     # 【MOD】更新残差
+            all_indices.append(idx)
+
+        # stack → [bands+11, B, ...]
+        return torch.stack(all_indices, dim=1)
+
+    def decode(self, q_indices: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            q_indices: LongTensor [bands+1, B, ...]
+        Returns:
+            quant_per_band: Tensor [B, bands+1, d]
+        """
+
+        recon_per = []
+        B, bands, n = q_indices.shape
+        for i in range(bands):
+            quant_i = self.layers[i].decode(q_indices[:,i,:])
+            recon_per.append(quant_i)
+        return torch.stack(recon_per, dim=1)

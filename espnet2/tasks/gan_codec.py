@@ -16,6 +16,9 @@ from espnet2.gan_codec.encodec.encodec import Encodec
 from espnet2.gan_codec.espnet_model import ESPnetGANCodecModel
 from espnet2.gan_codec.funcodec.funcodec import FunCodec
 from espnet2.gan_codec.soundstream.soundstream import SoundStream
+from espnet2.gan_codec.bandcodec_encdec.bandcodec_encdec import Bandcodec_encdec
+from espnet2.gan_codec.bandcodec_oneencdec.bandcodec_oneencdec import Bandcodec_oneencdec
+from espnet2.gan_codec.bandcodec_vq.bandcodec_vq import Bandcodec_vq
 from espnet2.tasks.abs_task import AbsTask, optim_classes
 from espnet2.train.class_choices import ClassChoices
 from espnet2.train.collate_fn import CommonCollateFn
@@ -32,6 +35,9 @@ codec_choices = ClassChoices(
         encodec=Encodec,
         dac=DAC,
         funcodec=FunCodec,
+        bandcodec=Bandcodec_encdec,
+        oneencdec_bandcodec=Bandcodec_oneencdec,
+        bandcodec_vq=Bandcodec_vq,
     ),
     default="soundstream",
 )

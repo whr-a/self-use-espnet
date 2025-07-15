@@ -1,0 +1,126 @@
+##########################################################
+#                  CODEC MODEL SETTING                   #
+##########################################################
+codec: bandcodec_oneenc_vq
+codec_conf:
+    sampling_rate: 24000
+
+    # generator related
+    generator_params:
+        hidden_dim: 512
+        bands:
+            - [0, 1000]
+            - [1000, 4000]
+            - [4000, 8000]
+            - [8000, 16000]
+            - [16000, 24000]
+        encdec_channels: 1
+        encdec_n_filters: 32
+        encdec_n_residual_layers: 3
+        encdec_ratios: [8, 5, 4, 2]
+        encdec_activation: Snake
+        # encdec_activation_params:
+        encdec_norm: weight_norm
+        encdec_kernel_size: 7
+        encdec_residual_kernel_size: 7
+        encdec_last_kernel_size: 7
+        encdec_dilation_base: 2
+        encdec_causal: false
+        encdec_pad_mode: reflect
+        encdec_true_skip: false
+        encdec_compress: 2
+        encdec_lstm: 2
+        cfm_model: cfm
+        quantizer_bins: 1024
+        quantizer_decay: 0.99
+        quantizer_kmeans_init: True
+        quantizer_kmeans_iters: 50
+        quantizer_threshold_ema_dead_code: 2
+        quantizer_dropout: False
+        cfm_mel_dim: 100
+        cfm_vq_fr: 75.0
+        cfm_mel_hop_size: 256
+        cfm_sigma: 0.0
+        cfm_flow_hidden_dim: 256
+        cfm_conv_channels: 256
+        cfm_num_conv_layers: 3
+        preload: True
+        fix_encoder: True
+        preload_path: "/u/hwang41/hwang41/3ai/espnet/egs_band/bandcodec/codec1/exp/codec_pretrain_encoder_5bands_oneencdec_raw_fs24000/save_760epoch.pth"
+
+    vocoder_path: /u/hwang41/hwang41/3ai/espnet/espnet2/gan_codec/shared/vocoder/bigvgan
+    vocoder_usecuda: False
+    # loss function related
+    use_mel_loss: true     # whether to use mel-spectrogram loss
+    use_vocoder_mel_loss: True
+    cfm_steps: 20
+    mel_loss_params:
+        range_start: 6
+        range_end: 11
+        window: hann        # window type
+        n_mels: 80          # number of Mel basis
+        fmin: 0             # minimum frequency for Mel basis
+        fmax: null          # maximum frequency for Mel basis
+        log_base: null      # null represent natural log
+    lambda_quantization: 1.0
+    lambda_reconstruct: 1.0 # loss scaling coefficient for speech reconstruction loss
+    lambda_mel: 30.0        # loss scaling coefficient for Mel loss
+    lambda_vocoder_mel: 90.0
+    lambda_cfm: 1.0
+    # others
+    cache_generator_outputs: false # whether to cache generator outputs in the training
+
+
+##########################################################
+#            OPTIMIZER & SCHEDULER SETTING               #
+##########################################################
+# optimizer setting for generator
+optim: adamw
+optim_conf:
+    lr: 2.0e-6
+    betas: [0.5, 0.9]
+    eps: 1.0e-9
+    weight_decay: 0.0
+scheduler: exponentiallr
+scheduler_conf:
+    gamma: 0.999875
+
+##########################################################
+#                OTHER TRAINING SETTING                  #
+##########################################################
+num_iters_per_epoch: 500 # number of iterations per epoch
+max_epoch: 3600              # number of epochs
+accum_grad: 1             # gradient accumulation
+batch_size: 2             # CHANGED
+batch_type: unsorted      # how to make batch
+
+iterator_type: chunk
+chunk_length: 32000
+num_cache_chunks: 256
+
+grad_clip: -1             # gradient clipping norm
+grad_noise: false         # whether to use gradient noise injection
+sort_in_batch: descending # how to sort data in making batch
+sort_batch: descending    # how to sort created batches
+num_workers: 1            # number of workers of data loader
+use_amp: false            # whether to use pytorch amp
+log_interval: 50          # log interval in iterations
+keep_nbest_models: 5      # number of models to keep
+num_att_plot: 0           # number of attention figures to be saved in every check
+seed: 777                 # random seed number
+patience: null            # patience for early stopping
+unused_parameters: true   # needed for multi gpu case
+best_model_criterion:     # criterion to save the best models
+-   - valid
+    - mel_loss
+    - min
+-   - train
+    - mel_loss
+    - min
+-   - train
+    - total_count
+    - max
+cudnn_deterministic: false # setting to false accelerates the training speed but makes it non-deterministic
+                           # in the case of GAN-TTS training, we strongly recommend setting to false
+cudnn_benchmark: false     # setting to true might acdelerate the training speed but sometimes decrease it
+                           # therefore, we set to false as a default (recommend trying both cases)

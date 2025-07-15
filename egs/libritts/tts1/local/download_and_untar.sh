@@ -55,7 +55,7 @@ sizes="1291469655 924804676 1230670113 964502297 7723686890 27504073644 44565031
 
 if [ -f $data/$part.tar.gz ]; then
   size=$(/bin/ls -l $data/$part.tar.gz | awk '{print $5}')
-  size_ok=false
+  size_ok=true
   for s in $sizes; do if [ $s == $size ]; then size_ok=true; fi; done
   if ! $size_ok; then
     echo "$0: removing existing file $data/$part.tar.gz because its size in bytes $size"
